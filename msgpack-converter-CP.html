@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MessagePack Converter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/msgpack-lite/0.1.26/msgpack.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #171a23;
+    --border: #2a2e3a;
+    --accent: #7dd3fc;
+    --accent2: #a78bfa;
+    --text: #e5e7eb;
+    --muted: #8b90a0;
+    --good: #4ade80;
+    --bad: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  h1 {
+    font-size: 20px;
+    margin: 0 0 4px 0;
+    color: var(--accent);
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 10px 18px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+  }
+  .tab.active {
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  label {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  textarea, select, input[type=text] {
+    width: 100%;
+    background: #0c0e14;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 10px;
+    font-family: 'SF Mono', Consolas, monospace;
+    font-size: 13px;
+    resize: vertical;
+  }
+  textarea { min-height: 90px; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .radio-group { display: flex; gap: 14px; }
+  .radio-group label { display: flex; align-items: center; gap: 6px; font-size: 13px; text-transform: none; letter-spacing: normal; color: var(--text); margin-bottom: 0; cursor: pointer; }
+  button.action {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #0f1117;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button.action:hover { opacity: 0.9; }
+  .output-block {
+    margin-top: 10px;
+    position: relative;
+  }
+  .output-block textarea {
+    background: #0a0c11;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--border);
+    color: var(--text);
+    border: none;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .copy-btn:hover { background: #3a3f4d; }
+  .error {
+    color: var(--bad);
+    font-size: 13px;
+    margin-top: 8px;
+    white-space: pre-wrap;
+  }
+  .status-ok {
+    color: var(--good);
+    font-size: 12px;
+    margin-top: 6px;
+  }
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 700px) {
+    .grid2 { grid-template-columns: 1fr; }
+  }
+  .hint {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .hint code {
+    background: #0a0c11;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--accent);
+  }
+  input[type=number] {
+    background: #0c0e14;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 8px 10px;
+    font-family: 'SF Mono', Consolas, monospace;
+    font-size: 13px;
+    width: 90px;
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .copy-btn-inline {
+    background: var(--border);
+    color: var(--text);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .copy-btn-inline:hover { background: #3a3f4d; }
+  .batch-item {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+  .batch-item:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+  .batch-item-header {
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .batch-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .batch-row input[type=text] {
+    flex: 1;
+    font-family: 'SF Mono', Consolas, monospace;
+    font-size: 12px;
+    background: #0a0c11;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    padding: 6px 8px;
+  }
+</style>
+</head>
+<body>
+
+<h1>MessagePack Converter</h1>
+<div class="subtitle">Convert between raw byte-string, hex, and JSON representations of MessagePack packets.</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="decode">Raw / Hex → JSON</button>
+  <button class="tab" data-tab="encode">JSON → Hex / Raw</button>
+</div>
+
+<!-- DECODE PANEL -->
+<div class="panel active" id="panel-decode">
+  <div class="card">
+    <div class="row">
+      <div class="radio-group">
+        <label><input type="radio" name="inputType" value="raw" checked> Raw byte-string (e.g. ¤type¤data...)</label>
+        <label><input type="radio" name="inputType" value="hex"> Hex string (e.g. 84 A4 74 79...)</label>
+      </div>
+    </div>
+    <label for="decodeInput">Input</label>
+    <textarea id="decodeInput" placeholder="Paste your raw string or hex here"></textarea>
+    <div class="row" style="margin-top:12px;">
+      <button class="action" id="decodeBtn">Decode →</button>
+    </div>
+    <div class="error" id="decodeError"></div>
+  </div>
+
+  <div class="card" id="decodeResults" style="display:none;">
+    <div class="output-block">
+      <label>JSON <span class="hint" style="text-transform:none;letter-spacing:normal;">(editable — edits re-encode the boxes below)</span></label>
+      <textarea id="outJson" rows="10"></textarea>
+      <button class="copy-btn" data-copy="outJson">Copy</button>
+    </div>
+    <div class="output-block">
+      <label>Hex (normalized) <span class="hint" style="text-transform:none;letter-spacing:normal;">(editable — edits re-decode the JSON above)</span></label>
+      <textarea id="outHexFromDecode" rows="3"></textarea>
+      <button class="copy-btn" data-copy="outHexFromDecode">Copy</button>
+    </div>
+    <div class="output-block">
+      <label>Raw byte-string (normalized) <span class="hint" style="text-transform:none;letter-spacing:normal;">(editable — edits re-decode the JSON above)</span></label>
+      <textarea id="outRawFromDecode" rows="3"></textarea>
+      <button class="copy-btn" data-copy="outRawFromDecode">Copy</button>
+    </div>
+    <div class="output-block">
+      <label>Byte count</label>
+      <div id="byteCount" style="font-size:13px;color:var(--muted);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ENCODE PANEL -->
+<div class="panel" id="panel-encode">
+  <div class="card">
+    <label for="encodeInput" id="encodeInputLabel">JSON input</label>
+    <textarea id="encodeInput" rows="10" placeholder='{"type":2,"data":["message","stamp_earned",{"id":{{N}}}],"options":{"compress":true},"nsp":"/"}'></textarea>
+
+    <div class="row" style="margin-top:14px;">
+      <label style="margin-bottom:0;">Auto-copy on encode</label>
+      <div class="radio-group">
+        <label><input type="radio" name="autoCopy" value="off" checked> Off</label>
+        <label><input type="radio" name="autoCopy" value="hex"> Hex</label>
+        <label><input type="radio" name="autoCopy" value="raw"> Raw</label>
+      </div>
+    </div>
+
+    <div class="row">
+      <label class="checkbox-row" for="batchModeToggle" style="text-transform:none;letter-spacing:normal;">
+        <input type="checkbox" id="batchModeToggle"> Batch encode a range of IDs
+      </label>
+    </div>
+
+    <div id="batchOptions" style="display:none;">
+      <div class="row">
+        <div class="radio-group">
+          <label><input type="radio" name="batchInputMode" value="range" checked> Range (From → To)</label>
+          <label><input type="radio" name="batchInputMode" value="list"> List of numbers</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="radio-group">
+          <label><input type="radio" name="batchValueMode" value="json" checked> JSON template (use {{N}})</label>
+          <label><input type="radio" name="batchValueMode" value="plain"> Plain number (no JSON)</label>
+        </div>
+      </div>
+
+      <div class="row" id="batchRangeRow">
+        <div>
+          <label for="batchFrom">From</label>
+          <input type="number" id="batchFrom" value="51">
+        </div>
+        <div>
+          <label for="batchTo">To</label>
+          <input type="number" id="batchTo" value="62">
+        </div>
+      </div>
+
+      <div id="batchListRow" style="display:none;margin-bottom:12px;">
+        <label for="batchListInput">Numbers (one per line)</label>
+        <textarea id="batchListInput" rows="6" placeholder="1&#10;2&#10;3&#10;5"></textarea>
+      </div>
+
+      <div class="hint" id="batchValueModeHint" style="margin-bottom:12px;">
+        Put <code>{{N}}</code> anywhere in your JSON where the number should go, e.g. <code>"id": {{N}}</code>. Each value will be encoded separately.
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:2px;">
+      <button class="action" id="encodeBtn">Encode →</button>
+    </div>
+    <div class="status-ok" id="encodeAutoCopyStatus"></div>
+    <div class="error" id="encodeError"></div>
+  </div>
+
+  <div class="card" id="encodeResults" style="display:none;">
+    <div class="grid2">
+      <div class="output-block">
+        <label>Hex</label>
+        <textarea id="outHex" rows="6" readonly></textarea>
+        <button class="copy-btn" data-copy="outHex">Copy</button>
+      </div>
+      <div class="output-block">
+        <label>Raw byte-string</label>
+        <textarea id="outRaw" rows="6" readonly></textarea>
+        <button class="copy-btn" data-copy="outRaw">Copy</button>
+      </div>
+    </div>
+    <div class="output-block" style="margin-top:10px;">
+      <div id="encByteCount" style="font-size:13px;color:var(--muted);"></div>
+    </div>
+  </div>
+
+  <div class="card" id="batchResults" style="display:none;">
+    <div class="output-block">
+      <label>All Hex (one per line)</label>
+      <textarea id="batchAllHex" rows="6" readonly></textarea>
+      <button class="copy-btn" data-copy="batchAllHex">Copy</button>
+    </div>
+    <div class="output-block">
+      <label>All Raw (one per line)</label>
+      <textarea id="batchAllRaw" rows="6" readonly></textarea>
+      <button class="copy-btn" data-copy="batchAllRaw">Copy</button>
+    </div>
+    <div class="hint" id="batchSkippedHint" style="margin-top:4px;"></div>
+
+    <label style="margin-top:18px;">Individual results</label>
+    <div id="batchList"></div>
+  </div>
+</div>
+
+<script>
+// ---------- Tab switching ----------
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ---------- Helpers ----------
+function rawStringToBytes(str) {
+  // Treat each char code as a byte (latin1-style, matches how the "raw" packet dump was made)
+  const bytes = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    bytes[i] = str.charCodeAt(i) & 0xFF;
+  }
+  return bytes;
+}
+
+function bytesToRawString(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) {
+    s += String.fromCharCode(bytes[i]);
+  }
+  return s;
+}
+
+function hexToBytes(hex) {
+  const clean = hex.replace(/0x/gi, '').replace(/[^0-9a-fA-F]/g, '');
+  if (clean.length % 2 !== 0) throw new Error('Hex string has an odd number of characters — check for a missing digit.');
+  const bytes = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < clean.length; i += 2) {
+    bytes[i / 2] = parseInt(clean.substr(i, 2), 16);
+  }
+  return bytes;
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes).map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const el = document.getElementById(btn.dataset.copy);
+    copyToClipboard(el.value);
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = original; }, 1200);
+  });
+});
+
+// ---------- Decode (raw/hex -> JSON) ----------
+document.getElementById('decodeBtn').addEventListener('click', () => {
+  const errEl = document.getElementById('decodeError');
+  const resultsEl = document.getElementById('decodeResults');
+  errEl.textContent = '';
+  resultsEl.style.display = 'none';
+
+  const inputType = document.querySelector('input[name="inputType"]:checked').value;
+  const raw = document.getElementById('decodeInput').value;
+
+  if (!raw.trim()) {
+    errEl.textContent = 'Please paste some input first.';
+    return;
+  }
+
+  try {
+    let bytes;
+    if (inputType === 'hex') {
+      bytes = hexToBytes(raw);
+    } else {
+      bytes = rawStringToBytes(raw);
+    }
+
+    const decoded = msgpack.decode(bytes);
+    const jsonStr = JSON.stringify(decoded, null, 2);
+
+    document.getElementById('outJson').value = jsonStr;
+    document.getElementById('outHexFromDecode').value = bytesToHex(bytes);
+    document.getElementById('outRawFromDecode').value = bytesToRawString(bytes);
+    document.getElementById('byteCount').textContent = bytes.length + ' bytes';
+
+    resultsEl.style.display = 'block';
+  } catch (e) {
+    errEl.textContent = 'Failed to decode: ' + e.message + '\n\nTip: if your input is the hex form, switch the radio button to "Hex string". If it\'s the ¤type¤data-style dump, use "Raw byte-string".';
+  }
+});
+
+// ---------- Live-sync the editable decode output boxes ----------
+function debounce(fn, delay) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), delay);
+  };
+}
+
+let decodeSyncing = false;
+const outJsonEl = document.getElementById('outJson');
+const outHexFromDecodeEl = document.getElementById('outHexFromDecode');
+const outRawFromDecodeEl = document.getElementById('outRawFromDecode');
+const byteCountEl = document.getElementById('byteCount');
+const decodeErrEl = document.getElementById('decodeError');
+
+function syncFromOutJson() {
+  if (decodeSyncing) return;
+  decodeSyncing = true;
+  try {
+    const obj = JSON.parse(outJsonEl.value);
+    const bytes = new Uint8Array(msgpack.encode(obj));
+    outHexFromDecodeEl.value = bytesToHex(bytes);
+    outRawFromDecodeEl.value = bytesToRawString(bytes);
+    byteCountEl.textContent = bytes.length + ' bytes';
+    decodeErrEl.textContent = '';
+  } catch (e) {
+    decodeErrEl.textContent = 'Could not re-encode edited JSON: ' + e.message;
+  }
+  decodeSyncing = false;
+}
+
+function syncFromOutHex() {
+  if (decodeSyncing) return;
+  decodeSyncing = true;
+  try {
+    const bytes = hexToBytes(outHexFromDecodeEl.value);
+    const decoded = msgpack.decode(bytes);
+    outJsonEl.value = JSON.stringify(decoded, null, 2);
+    outRawFromDecodeEl.value = bytesToRawString(bytes);
+    byteCountEl.textContent = bytes.length + ' bytes';
+    decodeErrEl.textContent = '';
+  } catch (e) {
+    decodeErrEl.textContent = 'Could not decode edited hex: ' + e.message;
+  }
+  decodeSyncing = false;
+}
+
+function syncFromOutRaw() {
+  if (decodeSyncing) return;
+  decodeSyncing = true;
+  try {
+    const bytes = rawStringToBytes(outRawFromDecodeEl.value);
+    const decoded = msgpack.decode(bytes);
+    outJsonEl.value = JSON.stringify(decoded, null, 2);
+    outHexFromDecodeEl.value = bytesToHex(bytes);
+    byteCountEl.textContent = bytes.length + ' bytes';
+    decodeErrEl.textContent = '';
+  } catch (e) {
+    decodeErrEl.textContent = 'Could not decode edited raw byte-string: ' + e.message;
+  }
+  decodeSyncing = false;
+}
+
+outJsonEl.addEventListener('input', debounce(syncFromOutJson, 500));
+outHexFromDecodeEl.addEventListener('input', debounce(syncFromOutHex, 500));
+outRawFromDecodeEl.addEventListener('input', debounce(syncFromOutRaw, 500));
+
+// ---------- Batch mode toggle ----------
+document.getElementById('batchModeToggle').addEventListener('change', (e) => {
+  document.getElementById('batchOptions').style.display = e.target.checked ? 'block' : 'none';
+  updateBatchValueModeUI();
+});
+
+document.querySelectorAll('input[name="batchInputMode"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    const mode = document.querySelector('input[name="batchInputMode"]:checked').value;
+    document.getElementById('batchRangeRow').style.display = mode === 'range' ? 'flex' : 'none';
+    document.getElementById('batchListRow').style.display = mode === 'list' ? 'block' : 'none';
+  });
+});
+
+function updateBatchValueModeUI() {
+  const isBatch = document.getElementById('batchModeToggle').checked;
+  const valueMode = document.querySelector('input[name="batchValueMode"]:checked').value;
+  const plain = isBatch && valueMode === 'plain';
+
+  const encodeInputEl = document.getElementById('encodeInput');
+  const labelEl = document.getElementById('encodeInputLabel');
+  const hintEl = document.getElementById('batchValueModeHint');
+
+  if (plain) {
+    encodeInputEl.style.display = 'none';
+    labelEl.style.display = 'none';
+    hintEl.innerHTML = 'Each number will be msgpack-encoded directly with no JSON wrapper.';
+  } else {
+    encodeInputEl.style.display = '';
+    labelEl.style.display = '';
+    hintEl.innerHTML = 'Put <code>{{N}}</code> anywhere in your JSON where the number should go, e.g. <code>"id": {{N}}</code>. Each value will be encoded separately.';
+  }
+}
+document.querySelectorAll('input[name="batchValueMode"]').forEach(radio => {
+  radio.addEventListener('change', updateBatchValueModeUI);
+});
+
+function flashStatus(el, msg) {
+  el.textContent = msg;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 1600);
+}
+
+// ---------- Encode (JSON -> hex/raw) ----------
+document.getElementById('encodeBtn').addEventListener('click', () => {
+  const errEl = document.getElementById('encodeError');
+  const statusEl = document.getElementById('encodeAutoCopyStatus');
+  const resultsEl = document.getElementById('encodeResults');
+  const batchResultsEl = document.getElementById('batchResults');
+  errEl.textContent = '';
+  statusEl.textContent = '';
+  resultsEl.style.display = 'none';
+  batchResultsEl.style.display = 'none';
+
+  const isBatch = document.getElementById('batchModeToggle').checked;
+  const isPlainBatch = isBatch && document.querySelector('input[name="batchValueMode"]:checked').value === 'plain';
+
+  const jsonStr = document.getElementById('encodeInput').value;
+  if (!isPlainBatch && !jsonStr.trim()) {
+    errEl.textContent = 'Please paste some JSON first.';
+    return;
+  }
+
+  if (isBatch) {
+    runBatchEncode(jsonStr, errEl, batchResultsEl);
+    return;
+  }
+
+  try {
+    const obj = JSON.parse(jsonStr);
+    const bytes = msgpack.encode(obj);
+    const byteArr = new Uint8Array(bytes); // msgpack-lite returns a Buffer-like Uint8Array
+
+    const hexOut = bytesToHex(byteArr);
+    const rawOut = bytesToRawString(byteArr);
+
+    document.getElementById('outHex').value = hexOut;
+    document.getElementById('outRaw').value = rawOut;
+    document.getElementById('encByteCount').textContent = byteArr.length + ' bytes';
+
+    resultsEl.style.display = 'block';
+
+    const autoCopy = document.querySelector('input[name="autoCopy"]:checked').value;
+    if (autoCopy === 'hex') {
+      copyToClipboard(hexOut);
+      flashStatus(statusEl, 'Copied hex to clipboard');
+    } else if (autoCopy === 'raw') {
+      copyToClipboard(rawOut);
+      flashStatus(statusEl, 'Copied raw byte-string to clipboard');
+    }
+  } catch (e) {
+    errEl.textContent = 'Failed to encode: ' + e.message;
+  }
+});
+
+// ---------- Batch encode (range or list of numbers) ----------
+function runBatchEncode(jsonTemplate, errEl, batchResultsEl) {
+  const mode = document.querySelector('input[name="batchInputMode"]:checked').value;
+  let ns = [];
+
+  if (mode === 'range') {
+    const fromRaw = document.getElementById('batchFrom').value;
+    const toRaw = document.getElementById('batchTo').value;
+    const from = parseInt(fromRaw, 10);
+    const to = parseInt(toRaw, 10);
+
+    if (Number.isNaN(from) || Number.isNaN(to)) {
+      errEl.textContent = 'Please enter valid numbers for the From/To range.';
+      return;
+    }
+    if (from > to) {
+      errEl.textContent = 'The "From" value must be less than or equal to the "To" value.';
+      return;
+    }
+    if (to - from > 500) {
+      errEl.textContent = 'That range is too large (max 500 values at once).';
+      return;
+    }
+    for (let n = from; n <= to; n++) ns.push(n);
+  } else {
+    const raw = document.getElementById('batchListInput').value;
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    if (lines.length === 0) {
+      errEl.textContent = 'Please enter at least one number, one per line.';
+      return;
+    }
+    if (lines.length > 500) {
+      errEl.textContent = 'That list is too large (max 500 values at once).';
+      return;
+    }
+    for (let i = 0; i < lines.length; i++) {
+      const n = Number(lines[i]);
+      if (Number.isNaN(n)) {
+        errEl.textContent = '"' + lines[i] + '" on line ' + (i + 1) + " isn't a valid number.";
+        return;
+      }
+      ns.push(n);
+    }
+  }
+
+  const plainMode = document.querySelector('input[name="batchValueMode"]:checked').value === 'plain';
+
+  if (!plainMode && !jsonTemplate.includes('{{N}}')) {
+    errEl.textContent = 'No {{N}} placeholder found in your JSON. Add {{N}} where the number should go, e.g. "id": {{N}}.';
+    return;
+  }
+
+  const listEl = document.getElementById('batchList');
+  listEl.innerHTML = '';
+
+  const allHex = [];
+  const allRaw = [];
+  let skipped = 0;
+
+  for (const n of ns) {
+    const item = document.createElement('div');
+    item.className = 'batch-item';
+
+    let hexOut, rawOut, itemError = null;
+    try {
+      const obj = plainMode ? n : JSON.parse(jsonTemplate.split('{{N}}').join(String(n)));
+      const bytes = msgpack.encode(obj);
+      const byteArr = new Uint8Array(bytes);
+      hexOut = bytesToHex(byteArr);
+      rawOut = bytesToRawString(byteArr);
+    } catch (e) {
+      itemError = e.message;
+    }
+
+    const header = document.createElement('div');
+    header.className = 'batch-item-header';
+    header.textContent = 'N = ' + n + (itemError ? '  —  error' : '');
+    item.appendChild(header);
+
+    if (itemError) {
+      skipped++;
+      const errDiv = document.createElement('div');
+      errDiv.className = 'error';
+      errDiv.style.marginTop = '0';
+      errDiv.textContent = itemError;
+      item.appendChild(errDiv);
+    } else {
+      item.appendChild(makeBatchRow('Hex', hexOut));
+      item.appendChild(makeBatchRow('Raw', rawOut));
+      allHex.push(hexOut);
+      allRaw.push(rawOut);
+    }
+
+    listEl.appendChild(item);
+  }
+
+  document.getElementById('batchAllHex').value = allHex.join('\n');
+  document.getElementById('batchAllRaw').value = allRaw.join('\n');
+  document.getElementById('batchSkippedHint').textContent = skipped > 0
+    ? (skipped + " item(s) failed to encode and were left out of the combined boxes above — see 'Individual results' below.")
+    : '';
+
+  batchResultsEl.style.display = 'block';
+}
+
+function makeBatchRow(labelText, value) {
+  const row = document.createElement('div');
+  row.className = 'batch-row';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.readOnly = true;
+  input.value = value;
+
+  const btn = document.createElement('button');
+  btn.className = 'copy-btn-inline';
+  btn.textContent = 'Copy ' + labelText;
+  btn.addEventListener('click', () => {
+    copyToClipboard(value);
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = original; }, 1200);
+  });
+
+  row.appendChild(input);
+  row.appendChild(btn);
+  return row;
+}
+
+// ---------- Pre-fill with your example on load ----------
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('decodeInput').value = "84 A4 74 79 70 65 02 A4 64 61 74 61 93 A7 6D 65 73 73 61 67 65 AC 73 74 61 6D 70 5F 65 61 72 6E 65 64 81 A2 69 64 0D A7 6F 70 74 69 6F 6E 73 81 A8 63 6F 6D 70 72 65 73 73 C3 A3 6E 73 70 A1 2F";
+  document.querySelector('input[name="inputType"][value="hex"]').checked = true;
+});
+</script>
+
+</body>
+</html>
